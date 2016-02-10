@@ -29,7 +29,7 @@
 # x there should be another way of doing this so one can do:
 #   --player federer --event "US Open" --round "F" --year 2010
 
-cd /Users/rahul/Downloads/tennis_atp-master || exit -1
+cd ~/Downloads/tennis_atp-master || exit -1
 
 OPT_VERBOSE=
 OPT_DEBUG=
