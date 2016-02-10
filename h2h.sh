@@ -14,10 +14,10 @@
 #        AUTHOR: YOUR NAME (), 
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 23:43
-#      REVISION:  2016-02-10 14:50
+#      REVISION:  2016-02-10 15:20
 #===============================================================================
 
-cd /Users/rahul/Downloads/tennis_atp-master
+cd ~/Downloads/tennis_atp-master
 
 OPT_VERBOSE=
 OPT_DEBUG=
