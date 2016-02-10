@@ -12,6 +12,9 @@
 #  REQUIREMENTS: ---
 #          BUGS: ---
 #         NOTES: ---
+#         -- in some cases may want full name, esp earlier years
+#         -- options for more data such as seeds of players, or other stats
+#         -- highest match of given person in an event
 #        AUTHOR: YOUR NAME (), 
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 20:59
@@ -21,7 +24,6 @@
 # accept name of event
 # name of person
 # year
-# DONE : allow specifying winner or loser. See which all matches someone lost in 2015
 
 DB=tennis.db
 cd /Users/rahul/Downloads/tennis_atp-master
@@ -307,7 +309,7 @@ _debug "OPT_PRO $OPT_PRO"
 text=$( sqlite3 tennis.db <<!
 .header on 
 .mode tabs
-select tourney_date as tdate, tourney_name as event, p.lastName as winner, cast(winner_age as int) as age, p1.lastName as loser, cast(loser_age as int) as age, score, round from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL ;
+select tourney_date as tdate, tourney_name as event, p.lastName as winner, cast(winner_age as int) as age, p1.lastName as loser, cast(loser_age as int) as age, score, round from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL order by tourney_date, match_num;
 !
 )
 _format "$text"
