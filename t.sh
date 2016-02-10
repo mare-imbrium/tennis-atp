@@ -26,7 +26,7 @@
 # year
 
 DB=tennis.db
-cd /Users/rahul/Downloads/tennis_atp-master
+cd ~/Downloads/tennis_atp-master
 OPT_SQL=""
 
 _debug() {
