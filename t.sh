@@ -12,18 +12,17 @@
 #  REQUIREMENTS: ---
 #          BUGS: ---
 #         NOTES: ---
-#         -- in some cases may want full name, esp earlier years
-#         -- options for more data such as seeds of players, or other stats
 #         -- highest match of given person in an event
-#        AUTHOR: YOUR NAME (), 
+#        AUTHOR: senti
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 20:59
 #      REVISION:  2016-02-09 21:10
+#
+# = Changelog
+# - 2016-02-11 - added --fullname option to get fullname
+#              - added --seed option to display seed of player
 #===============================================================================
 
-# accept name of event
-# name of person
-# year
 
 DB=tennis.db
 cd ~/Downloads/tennis_atp-master
@@ -42,6 +41,7 @@ _format() {
         return 1
     fi
     if [[ -z "$OPT_RAW" ]]; then
+        # formatted text, pass through csvlook and print totals`yy
         echo -e "$text" | csvlook --tabs  $OPT_LINE_NUMBER
         # print number of rows
         echo -n "Results: "
@@ -50,6 +50,7 @@ _format() {
         (( ct-- ))
         echo "$ct"
     else
+        # unformatted text, just print
         echo "$text" 
     fi
 }
@@ -58,35 +59,44 @@ _format() {
 # if two names are given then filters second based on first -- only those who have played
 #   with the first name.
 _filter_names() {
-_debug "OPT_SQL ${OPT_SQL}"
-local xxx="1=1"
-[[ -n "$PRO" ]] && { xxx="(winner_name = '"${PRO}"' OR loser_name = '"${PRO}"' )"; }
-names=$( sqlite3 $DB <<!
+    _debug "OPT_SQL ${OPT_SQL}"
+    local xxx="1=1"
+    [[ -n "$PRO" ]] && { xxx="(winner_name = '"${PRO}"' OR loser_name = '"${PRO}"' )"; }
+    names=$( sqlite3 $DB <<!
    select winner_name, loser_name from matches where ${xxx} ${OPT_SQL};
 !
-)
-names=$( echo "$names" | tr '|' '\n' | sort -u )
-#echo "$names" | wc -l
+       )
+       names=$( echo "$names" | tr '|' '\n' | sort -u )
 }
+
 _filter_winners() {
-_debug "OPT_SQL ${OPT_SQL}"
-# pass in winner or loser
-local worl="$1"
-local xxx="1=1"
-[[ -n "$PRO" ]] && { xxx="(winner_name = '"${PRO}"' OR loser_name = '"${PRO}"' )"; }
-names=$( sqlite3 $DB <<!
+    _debug "OPT_SQL ${OPT_SQL}"
+    # pass in winner or loser
+    local worl="$1"
+    local xxx="1=1"
+    [[ -n "$PRO" ]] && { xxx="(winner_name = '"${PRO}"' OR loser_name = '"${PRO}"' )"; }
+    names=$( sqlite3 $DB <<!
    SELECT ${worl}_name FROM matches WHERE ${xxx} ${OPT_SQL};
 !
-)
-names=$( echo "$names" | sort -u )
-#echo "$names" | wc -l
+    )
+    names=$( echo "$names" | sort -u )
 }
 
 OPT_VERBOSE=
 OPT_DEBUG=
+# put this in variable since we need to give full names if requested
+SQL_NAME_W="p.lastName "
+SQL_NAME_L="p1.lastName "
+
+# -------------- process command line options --------------------- #
 while [[ $1 = -* ]]; do
     case "$1" in
-        --raw)   shift
+        -r|--round)   shift
+            ROUND=$1
+            OPT_SQL="${OPT_SQL} AND round  = '"${ROUND}"'"
+            shift
+            ;;
+        --raw|--tabs)   shift
             OPT_RAW=$1
             ;;
         -n|--numbering)   shift
@@ -103,6 +113,12 @@ while [[ $1 = -* ]]; do
         -l|--loser)   shift
             OPT_LOSER=$1
             shift
+            ;;
+        --fullname)   shift
+            OPT_FULLNAME=1
+            ;;
+        --seed)   shift
+            OPT_SEED=1
             ;;
         -e|--event)   shift
             EVENT=$1
@@ -135,11 +151,6 @@ while [[ $1 = -* ]]; do
             esac
 
             ;;
-        -r|--round)   shift
-            ROUND=$1
-            OPT_SQL="${OPT_SQL} AND round  = '"${ROUND}"'"
-            shift
-            ;;
         --level)   shift
             OPT_LEVEL=$1
             OPT_FILTER=1
@@ -160,12 +171,12 @@ while [[ $1 = -* ]]; do
             ;;
         -h|--help)
             cat <<-! | sed 's|^     ||g'
-            $0 Version: 0.0.0 Copyright (C) 2016 jkepler
+            $0 Version: 1.0.0 Copyright (C) 2016 jkepler
             This program prints match results from ATP events (non future/challenger)
              for players, year. events, rounds.
 
             Usage:
-            To see matches of a player ( you will be prompted for other fields)
+            To see matches of a player 
             $0 [playername]
             To see matches of Federer vs Nadal
             $0 Federer Nadal
@@ -175,6 +186,9 @@ while [[ $1 = -* ]]; do
             $0 federer 2012 @austral
             To see Nadals matches against Djokovic on clay in 2012. Other values are grass and hard.
             $0 nadal 2012 clay Djokovic
+            To see matches where a player was the winner:
+            $0 --winner Nadal 2013
+            $0 --winner Nadal --loser Djokovic 2013
 
             Options:
             -y  --year        Year filter. Can be 201 or 200 or 198 or 2009
@@ -183,8 +197,8 @@ while [[ $1 = -* ]]; do
                               slam - takes all four majors into account
                               wtf  - take World Tour Final/TMC/YEC 
             -r  --round       Round: F SF QF R16 R32 R64 R128. Or .* for all
-                --level G|M|A Filter by level. G=slams, M=masters, A=lower
-                --surface Clay | Hard | Grass. Filter by surface
+                --level TYPE  Filter by level. G=slams, M=masters, A=lower
+                --surface TYPE Types are Clay , Hard , Grass. Filter by surface
                 --winner NAME Display matches won by given player
                 --loser  NAME Display matches lost by given player
 
@@ -306,10 +320,18 @@ else
 fi
 #select tourney_date as tdate, tourney_name, winner_name, cast(winner_age as int) as age, loser_name, cast(loser_age as int) as age, score, round from matches where $OPT_PRO  $OPT_SQL ;
 _debug "OPT_PRO $OPT_PRO"
+if [[ -n "$OPT_FULLNAME" ]]; then
+    SQL_NAME_W="p.firstName || ' ' || p.lastName "
+    SQL_NAME_L="p1.firstName || ' ' || p1.lastName "
+fi
+if [[ -n "$OPT_SEED" ]]; then
+    SQL_NAME_W="${SQL_NAME_W} || ( CASE WHEN m.winner_seed != '' THEN ' [' || m.winner_seed || ']' ELSE ' ' END) "
+    SQL_NAME_L="${SQL_NAME_L} || ( CASE WHEN m.loser_seed != '' THEN ' [' || m.loser_seed || ']' ELSE ' ' END) "
+fi
 text=$( sqlite3 tennis.db <<!
 .header on 
 .mode tabs
-select tourney_date as tdate, tourney_name as event, p.lastName as winner, cast(winner_age as int) as age, p1.lastName as loser, cast(loser_age as int) as age, score, round from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL order by tourney_date, match_num;
+select tourney_date as tdate, tourney_name as event, ${SQL_NAME_W} as winner, cast(winner_age as int) as age, ${SQL_NAME_L} as loser, cast(loser_age as int) as age, score, round from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL order by tourney_date, match_num;
 !
 )
 _format "$text"
