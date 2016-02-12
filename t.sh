@@ -13,12 +13,15 @@
 #          BUGS: ---
 #         NOTES: ---
 #         -- highest match of given person in an event
+#         -- allow user to enter multiple rounds: F,SF 
 #        AUTHOR: senti
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 20:59
 #      REVISION:  2016-02-09 21:10
 #
 # = Changelog
+# - 2016-02-12 - v1.1
+#              - added multiple values for year, level, round, surface
 # - 2016-02-11 - added --fullname option to get fullname
 #              - added --seed option to display seed of player
 #===============================================================================
@@ -33,6 +36,10 @@ _debug() {
     if [[ -n "$OPT_DEBUG" ]]; then
         echo -e "$str"
     fi
+}
+_quote_comma() {
+    # a string such as "SF,F" will be returned as ('SF','F')
+    RESULT=$(echo "$*" | tr ',' '\n' | sed "s/.*/'&'/" | tr '\n' ',' | sed 's/^/(/;s/,$/)/' )
 }
 _format() {
 
@@ -89,11 +96,18 @@ SQL_NAME_W="p.lastName "
 SQL_NAME_L="p1.lastName "
 
 # -------------- process command line options --------------------- #
+shopt -s extglob
 while [[ $1 = -* ]]; do
     case "$1" in
         -r|--round)   shift
             ROUND=$1
-            OPT_SQL="${OPT_SQL} AND round  = '"${ROUND}"'"
+            if [[ $ROUND = *,* ]]; then
+                _quote_comma $ROUND
+                ROUND="${RESULT}"
+                OPT_SQL="${OPT_SQL} AND round  IN ${ROUND}"
+            else
+                OPT_SQL="${OPT_SQL} AND round  = '"${ROUND}"'"
+            fi
             shift
             ;;
         --raw|--tabs)   shift
@@ -153,14 +167,24 @@ while [[ $1 = -* ]]; do
             ;;
         --level)   shift
             OPT_LEVEL=$1
-            OPT_FILTER=1
-            OPT_SQL="${OPT_SQL} AND tourney_level  = '"${OPT_LEVEL}"'"
+            if [[ $OPT_LEVEL = *,* ]]; then
+                _quote_comma $OPT_LEVEL
+                OPT_LEVEL="${RESULT}"
+                OPT_SQL="${OPT_SQL} AND tourney_level  IN ${OPT_LEVEL}"
+            else
+                OPT_SQL="${OPT_SQL} AND tourney_level  = '"${OPT_LEVEL}"'"
+            fi
             shift
             ;;
         --surface)   shift
             OPT_SURFACE=$1
-            OPT_FILTER=1
-            OPT_SQL="${OPT_SQL} AND surface  = '"${OPT_SURFACE}"'"
+            if [[ $OPT_SURFACE = *,* ]]; then
+                _quote_comma $OPT_SURFACE
+                OPT_SURFACE="${RESULT}"
+                OPT_SQL="${OPT_SQL} AND surface IN ${OPT_SURFACE}"
+            else
+                OPT_SQL="${OPT_SQL} AND surface  = '"${OPT_SURFACE}"'"
+            fi
             shift
             ;;
         -V|--verbose)   shift
@@ -171,7 +195,7 @@ while [[ $1 = -* ]]; do
             ;;
         -h|--help)
             cat <<-! | sed 's|^     ||g'
-            $0 Version: 1.0.0 Copyright (C) 2016 jkepler
+            $0 Version: 1.1.0 Copyright (C) 2016 jkepler
             This program prints match results from ATP events (non future/challenger)
              for players, year. events, rounds.
 
@@ -196,7 +220,7 @@ while [[ $1 = -* ]]; do
                               As special cases:
                               slam - takes all four majors into account
                               wtf  - take World Tour Final/TMC/YEC 
-            -r  --round       Round: F SF QF R16 R32 R64 R128. Or .* for all
+            -r  --round TYPE  Round: F SF QF R16 R32 R64 R128. Or .* for all
                 --level TYPE  Filter by level. G=slams, M=masters, A=lower
                 --surface TYPE Types are Clay , Hard , Grass. Filter by surface
                 --winner NAME Display matches won by given player
@@ -206,7 +230,14 @@ while [[ $1 = -* ]]; do
             --debug           Displays debug information
             -n|--numbering    csvlook will number first column
             --raw             Display information with TAB separator, no tables
+
+            The following allow multiple values, separated by commas.:
+            --round SF,F
+            --level G,M
+            --surface Grass,Clay
+            --year 2000,2001   In this case, full year must be given
 !
+
             # no shifting needed here, we'll quit!
             exit
             ;;
@@ -274,7 +305,14 @@ do
     fi
 done
 if [[ -n "$YEAR" ]]; then
-    OPT_SQL="${OPT_SQL} AND tourney_date LIKE '"${YEAR}"%'"
+    if [[ $YEAR = *,* ]]; then
+        # NOTE if years are given they must be full years since LIKE is not used
+        _quote_comma $YEAR
+        YEAR="${RESULT}"
+        OPT_SQL="${OPT_SQL} AND substr(tourney_date,1,4) IN ${YEAR}"
+    else
+        OPT_SQL="${OPT_SQL} AND tourney_date LIKE '"${YEAR}"%'"
+    fi
 fi
 # ------------- determine exact name of pro ---------------------- #
 
