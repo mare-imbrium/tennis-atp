@@ -12,14 +12,14 @@
 #  REQUIREMENTS: ---
 #          BUGS: ---
 #         NOTES: ---
-#         -- highest match of given person in an event
-#         -- allow user to enter multiple rounds: F,SF 
 #        AUTHOR: senti
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 20:59
-#      REVISION:  2016-02-09 21:10
+#      REVISION:  2016-02-13 18:39
 #
 # = Changelog
+# - 2016-02-13 - v1.1 
+#              - added --extra so we can throw in more columns in the output
 # - 2016-02-12 - v1.1
 #              - added multiple values for year, level, round, surface
 # - 2016-02-11 - added --fullname option to get fullname
@@ -192,6 +192,12 @@ while [[ $1 = -* ]]; do
             ;;
         --debug)        shift
             OPT_DEBUG=1
+            ;;
+        -x|--extra)   shift
+            # add extra columns names to display starting with a comma.
+            # e.g., ", tourney_level, surface"
+            EXTRA_COLS=$1
+            shift
             ;;
         -h|--help)
             cat <<-! | sed 's|^     ||g'
@@ -369,7 +375,7 @@ fi
 text=$( sqlite3 tennis.db <<!
 .header on 
 .mode tabs
-select tourney_date as tdate, tourney_name as event, ${SQL_NAME_W} as winner, cast(winner_age as int) as age, ${SQL_NAME_L} as loser, cast(loser_age as int) as age, score, round from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL order by tourney_date, match_num;
+select tourney_date as tdate, tourney_name as event, ${SQL_NAME_W} as winner, cast(winner_age as int) as age, ${SQL_NAME_L} as loser, cast(loser_age as int) as age, score, round $EXTRA_COLS from matches m, player p, player p1  where m.winner_id = p.id and m.loser_id = p1.id and $OPT_PRO  $OPT_SQL order by tourney_date, match_num;
 !
 )
 _format "$text"
