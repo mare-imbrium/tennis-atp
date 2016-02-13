@@ -27,3 +27,9 @@ filtering on specific fields in a CSV is possible, but not easy). SQL is much ea
 try h2h.sh but it's functionality is largely there in t.sh.
 
 t.sh --help to see options and examples of usage.
+
+
+## TODO
+
+Some fields may need to be changed to int. Otherwise they don't sort correctly. Such as match_num.
+Check age too.
