@@ -9,6 +9,16 @@ For these program to work you require:
 
 - downloaded copy of Jeff Sackmann's tennis-atp-masters csv files from github
 https://github.com/JeffSackmann/tennis_atp
+(data files are in ~/Downloads/tennis_atp-master/ )
+NOW IN /Volumes/Pacino/dziga_backup/rahul/Downloads/tennis_atp-master
+
+When downloading individual files I find that they are gzipped. So we have to gunzip them too.
+
+Currently this was the URL.
+wget https://raw.githubusercontent.com/JeffSackmann/tennis_atp/master/atp_matches_2017.csv
+
+Use importfile.sh <2018> for individual years
+
 - sqlite3
   Import all the files using the convert_sqlite.sh program provided by Jeff. Pass
   "tennis.db" as the argument.
@@ -28,6 +38,9 @@ try h2h.sh but it's functionality is largely there in t.sh.
 
 t.sh --help to see options and examples of usage.
 
+# Update every year or after a few months.
+  Download the atp_matches file for that year.
+  Call importfile.sh with the year. It will delete data for that year and reinsert that data.
 
 ## TODO
 
