@@ -15,9 +15,11 @@
 #        AUTHOR: senti
 #  ORGANIZATION: 
 #       CREATED: 02/05/2016 20:59
-#      REVISION:  2016-02-13 18:39
+#      REVISION:  2018-02-16 14:44
 #
 # = Changelog
+# - 2018-02-16 - v1.2
+#              - don't print if no matches between two given players
 # - 2016-02-13 - v1.1 
 #              - added --extra so we can throw in more columns in the output
 # - 2016-02-12 - v1.1
@@ -28,7 +30,9 @@
 
 
 DB=tennis.db
-cd ~/Downloads/tennis_atp-master
+#cd ~/Downloads/tennis_atp-master
+cd /Volumes/Pacino/dziga_backup/rahul/Downloads/tennis_atp-master
+
 OPT_SQL=""
 
 _debug() {
@@ -69,6 +73,7 @@ _filter_names() {
     _debug "OPT_SQL ${OPT_SQL}"
     local xxx="1=1"
     [[ -n "$PRO" ]] && { xxx="(winner_name = '"${PRO}"' OR loser_name = '"${PRO}"' )"; }
+    _debug "xxx ${xxx}"
     names=$( sqlite3 $DB <<!
    select winner_name, loser_name from matches where ${xxx} ${OPT_SQL};
 !
@@ -200,25 +205,27 @@ while [[ $1 = -* ]]; do
             shift
             ;;
         -h|--help)
+            APPNAME=$(basename $0)
             cat <<-! | sed 's|^     ||g'
-            $0 Version: 1.1.0 Copyright (C) 2016 jkepler
+            $APPNAME Version: 1.1.0 Copyright (C) 2016 jkepler
             This program prints match results from ATP events (non future/challenger)
-             for players, year. events, rounds.
+             for players, year. events, rounds. 
+                 (Data thanks to Jeff Sackman: https://github.com/JeffSackmann/tennis_atp)
 
             Usage:
             To see matches of a player 
-            $0 [playername]
+                $APPNAME [playername]
             To see matches of Federer vs Nadal
-            $0 Federer Nadal
+                $APPNAME Federer Nadal
             To see matches of two players in a given year pass a number starting with 19 or 20
-            $0 Federer Djokovic 2012
+                $APPNAME Federer Djokovic 2012
             To see matches for an event, pass part of event starting with '@'
-            $0 federer 2012 @austral
+                $APPNAME federer 2012 @austral
             To see Nadals matches against Djokovic on clay in 2012. Other values are grass and hard.
-            $0 nadal 2012 clay Djokovic
+                $APPNAME nadal 2012 clay Djokovic
             To see matches where a player was the winner:
-            $0 --winner Nadal 2013
-            $0 --winner Nadal --loser Djokovic 2013
+                $APPNAME --winner Nadal 2013
+                $APPNAME --winner Nadal --loser Djokovic 2013
 
             Options:
             -y  --year        Year filter. Can be 201 or 200 or 198 or 2009
@@ -244,7 +251,6 @@ while [[ $1 = -* ]]; do
             --year 2000,2001   In this case, full year must be given
 !
 
-            # no shifting needed here, we'll quit!
             exit
             ;;
         --edit)
@@ -343,7 +349,14 @@ fi
 if [[ -n "$ARGOPPONENT" ]]; then
     if [[ -z "$OPPONENT" ]]; then
         _filter_names
+        _debug "names is $names"
         OPPONENT=$( echo "$names" | fzf --prompt="Opponent: " --query="$ARGOPPONENT" -1 -0)
+        _debug "OPPONENT is $OPPONENT"
+        # 2018-02-16 - don't print if no matches with second player
+        if [[ -z "$OPPONENT" ]]; then
+            echo "Seems there were no matches between $PRO and $ARGOPPONENT"
+            exit -1
+        fi
     fi
 fi
 # ----- no pro selected, we want match result, we don't know who won or lost
